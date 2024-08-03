@@ -59,7 +59,7 @@ function setFilter ([string]$option,[string]$type) { # builds out the commands f
         {@("search" , "delete") -contains $_ }
         {
             #search doesnt care about sender or receiver
-            if ( $ioAfter -ne $null ) {
+            if ( $null -ne $ioAfter ) {
                 $sendBuilder = "Sent:$ioAfter..$ioBefore"
             }
             else {
@@ -261,7 +261,7 @@ Do {
 
         }
         7 {
-            if ($Session -ne $null){
+            if ($null -ne $Session){
                 Remove-PSSession $Session
             }
         }
@@ -278,6 +278,6 @@ Do {
 
     }
 } While ($menuOption -ne 111)
-if ($Session -ne $null){
+if ($null -ne $Session){
     Remove-PSSession $Session
 }
