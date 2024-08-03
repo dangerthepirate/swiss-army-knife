@@ -1,9 +1,34 @@
-﻿$logfile = "\\files3\archive\psLogs\SAKLogs.txt"
-$reportDir = "\\bsdfs001\thehub\information technology\_IT 2017-07-01\Archive\Users"
+﻿$logfile = "\\server1\archive\psLogs\SAKLogs.txt"
+$reportDir = "\\server2\thehub\information technology\_IT 2017-07-01\Archive\Users"
 $host.ui.RawUI.WindowTitle = "Swiss Army Knife Menu"
 $runAt = (Get-Date).ToString("yyyy/MM/dd HH:mm")
 
-function setFilter ([string]$option,[string]$type) { 
+#todo - add correct options, build out menu builder dealy
+$mainMenuOptions = # set menu options here, number then text of the option in quotes.
+@'
+    8,      "menu text for option 8"
+    9,      "option 9"
+    10,     "10th emnu"
+    102,    "actual actual last one "
+'@
+
+class menuOption {
+
+    [int]     $Option
+    [string]  $Text
+
+    menuOption([int]$Option, [string]$Text) {
+        $this.Init(@{Option = $Option; Text = $Text })
+    }
+    [void] Init([hashtable]$Properties) {
+        foreach ($Property in $Properties.Keys) {
+            $this.$Property = $Properties.$Property
+        }
+    }
+}
+
+
+function setFilter ([string]$option,[string]$type) { # builds out the commands for search params
  
     $ioAfter = $null
 
@@ -25,7 +50,7 @@ function setFilter ([string]$option,[string]$type) {
     if ( $option -eq '2nd' ) {
         $ioAfter = (Get-Date -year $arcYr -month 7 -day 1)    #archive year July 1
     }
-    if ( $ioAfter -ne $null ) {
+    if ( $null -ne $ioAfter ) {
         $ioAfter = $ioAfter.ToString("MM/dd/yyyy")
     }
     $ioBefore = $ioBefore.ToString("MM/dd/yyyy")    
@@ -45,7 +70,7 @@ function setFilter ([string]$option,[string]$type) {
         "archive" {
             $recdBuilder = "( Received -le '$ioBefore' )"
             $sendBuilder = "( Sent -le '$ioBefore' )"
-            if ( $ioAfter -ne $null ) {
+            if ( $null -ne $ioAfter ) {
                 $recdBuilder = "(( Received -ge '$ioAfter' ) -and $recdBuilder)"
                 $sendBuilder = "(( Sent -ge '$ioAfter' ) -and $sendBuilder)"
             }    
@@ -57,7 +82,7 @@ function setFilter ([string]$option,[string]$type) {
 }
 
 function getExchangeCommand ([string]$exOption, [string]$exUser, [string]$exFilter, [string]$exYr) {
-    $mailboxToBeArchived = "$exUser@bascoshowerdoor.com"
+    $mailboxToBeArchived = "$exUser@domain.com"
             
     switch ($exOption) {
         "search"{
@@ -70,7 +95,7 @@ function getExchangeCommand ([string]$exOption, [string]$exUser, [string]$exFilt
 
         "archive"{
             $arcName = $exUser + $exOption + $exYr
-            $arcPath = "`"\\files3\archive\Users PST archive\$exYr\$u-$comment$exYr.pst`""
+            $arcPath = "`"\\server1\archive\Users PST archive\$exYr\$u-$comment$exYr.pst`""
             $exCommand = "New-MailboxExportRequest -Name $arcName -Mailbox $mailboxToBeArchived -ContentFilter `"$exFilter`" -Filepath $arcPath"
         }
     }
@@ -78,7 +103,7 @@ function getExchangeCommand ([string]$exOption, [string]$exUser, [string]$exFilt
     return [string]$exCommand
 }
 
-function frmBars{
+function frmBars{ # dumb formatting, but this keeps it standard
     Write-Host "`n
  <=========================================================><=========================================================>
      ##############################################################################################################
@@ -90,7 +115,7 @@ function frmBars{
 function scriptHeader {
     frmBars
     Write-host "`n
-                                             Basco Swiss Army Knife Script
+                                             WW&TB Swiss Army Knife Script
     
                                                                              .:^
                                                        ^                    /   |
@@ -109,7 +134,7 @@ function scriptHeader {
     frmBars
 }
 
-function collectUsers{
+function collectUsers{ #collects comma separated usernames, breaks them apart and stores them as an array of strings
     $userArray = [System.Collections.ArrayList]::new()
     [string]$inString = Read-Host "
             Please enter the user name(s) - comma separated if there are multiple" # collects username(s)
@@ -123,14 +148,18 @@ function collectUsers{
 }
 
 function menuTitle([string]$title) {
-    cls;
+    Clear-Host
     frmBars
     Write-Host "  |    $title    |"
 }
 
 #Main menu loop
+$menuOptions = New-Object System.Collections.Generic.List[menuOption]
+$mainMenuOptions | ConvertFrom-Csv -Header 'Option', 'Text' `
+| ForEach-Object { $menuOptions.Add( [menuOption]::new($_.Option, $_.Text) ) }
+
 Do {
-    cls;
+    Clear-Host
     scriptHeader
     $menuOption = read-host "
         Select an Option:
@@ -160,13 +189,13 @@ Do {
         3 {
             $nameuser = read-host "          Username? "
             $reportPath = $reportDir + "\" + $nameuser + "_AD_Groups.txt"
-            get-aduser $nameuser -Properties memberof | select -ExpandProperty memberof >> $reportPath
+            get-aduser $nameuser -Properties memberof | Select-Object -ExpandProperty memberof >> $reportPath
             write-host "     The file is $reportPath"
             Pause
         }
         4 { #    Connects remote PS session to exchange server
             $UserCredential = Get-Credential
-            $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://mail.frameless.pcd/PowerShell/ -Authentication Kerberos -Credential $UserCredential
+            $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://mwebmail.domain.com -Authentication Kerberos -Credential $UserCredential
             Import-PSSession $Session -DisableNameChecking -AllowClobber
         }
         5 { #exchange search / archive menu
@@ -191,12 +220,12 @@ Do {
                     Which year? If you entered 'Remove', it automatically assumes all user emails" # collects which year
 
 
-                if ($arcYr -eq $null) { $comment="remove" } # assumes remove if year is skipped
+                if ($null -eq $arcYr) { $comment="remove" } # assumes remove if year is skipped
 
                 $SorAFilter = setFilter $comment $sora
                 $runAt = (Get-Date).ToString("yyyy/MM/dd HH:mm")
 
-                foreach ($u in $usersToArchive ){
+                foreach ( $u in $usersToArchive ){
                     $command = getExchangeCommand $sora $u $SorAFilter $arcYr
                     "  $runAt - We are running the following command on mail: $command"  |Out-File -filePath $logfile -NoClobber -Append
                
