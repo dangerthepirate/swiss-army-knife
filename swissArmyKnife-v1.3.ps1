@@ -6,10 +6,16 @@ $runAt = (Get-Date).ToString("yyyy/MM/dd HH:mm")
 #todo - add correct options, build out menu builder dealy
 $mainMenuOptions = # set menu options here, number then text of the option in quotes.
 @'
-    8,      "menu text for option 8"
-    9,      "option 9"
-    10,     "10th emnu"
-    102,    "actual actual last one "
+        1,   "Get locked out users list"
+        2,   "Unlock A User"
+        3,   "Get AD groups for a user"
+        4,   "Connect remote exchange session"
+        5,   "Search, Archive or Delete mailboxes"
+        6,   "Exchange status checks"
+        7,   "Disconnect exchange session"
+        98,  "Relaunch a new instance of this script"
+        99,  "Open ISE"
+        111, "Exit"
 '@
 
 class menuOption {
@@ -27,6 +33,19 @@ class menuOption {
     }
 }
 
+function mainMenu ( [System.Collections.Generic.List[menuOption]]$options ) {
+
+    Write-Host "`n`n`tMenu Options: `n"
+
+    $options | 
+    ForEach-Object {
+        Write-Host "`t  "$_.Option"`t"$_.Text
+    }
+
+    $selection = Read-Host "        Make a selection"
+
+    return $selection
+}
 
 function setFilter ([string]$option,[string]$type) { # builds out the commands for search params
  
@@ -153,14 +172,20 @@ function menuTitle([string]$title) {
     Write-Host "  |    $title    |"
 }
 
+# ================================================================================================================>>
 #Main menu loop
-$menuOptions = New-Object System.Collections.Generic.List[menuOption]
-$mainMenuOptions | ConvertFrom-Csv -Header 'Option', 'Text' `
-| ForEach-Object { $menuOptions.Add( [menuOption]::new($_.Option, $_.Text) ) }
+$menuOptions = [System.Collections.Generic.List[menuOption]]::new() # new array of memuOption objects
+
+# pipes $mainMenuOptions from above into the empty $menuOptions to create the new menuOption objects
+$mainMenuOptions | 
+    ConvertFrom-Csv -Header 'Option', 'Text' |
+    ForEach-Object { $menuOptions.Add( [menuOption]::new($_.Option, $_.Text) ) }
 
 Do {
     Clear-Host
     scriptHeader
+    $userChoice = mainMenu( $menuOptions )
+    <#
     $menuOption = read-host "
         Select an Option:
         1: Get locked out users list
@@ -177,8 +202,8 @@ Do {
         111 to exit
          
          Selection "
-
-    switch ($menuOption) {
+    #>
+    switch ($userChoice) {
         1 {
             search-adaccount -lockedout        
         }
@@ -277,7 +302,7 @@ Do {
         }
 
     }
-} While ($menuOption -ne 111)
+} While ($userChoice -ne 111)
 if ($null -ne $Session){
     Remove-PSSession $Session
 }
